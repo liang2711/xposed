@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest package="de.robv.android.xposed.installer"
+          xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+
+    <!--  这里的theme是设置整个activity的-->
+    <application
+        android:name=".XposedApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.XposedInstaller.Light">
+        <activity
+            android:name=".WelcomeActivity"
+            android:configChanges="orientation|screenSize"
+            android:exported="true"
+            android:label="@string/app_name">
+            <!-- 这个也是隐式当系统启用应用时会发出name为android.intent.action.MAIN的动作，系统匹配到了这个 调用 WelcomeActivity-->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- theme是设置当前activity的它会覆盖掉application -->
+        <activity
+            android:name=".DownloadDetailsActivity"
+            android:configChanges="orientation|screenSize"
+            android:exported="true"
+            android:theme="@style/Theme.XposedInstaller.Transparent">
+            <!-- 隐式intent 让系统去匹配这个intent去调用那个组件  得看DownloadDetailsActivity有没有调用这个action-->
+            <intent-filter>
+                <action android:name="de.robv.android.xposed.installer.DOWNLOAD_DETAILS"/>
+
+                <data android:scheme="package"/>
+
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+            <!-- 从网络下载东西 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+
+                <data
+                    android:host="repo.xposed.info"
+                    android:pathPrefix="/module/"
+                    android:scheme="http"/>
+
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".SettingsActivity"
+            android:theme="@style/Theme.XposedInstaller.Transparent"/>
+        <activity
+            android:name=".SupportActivity"
+            android:theme="@style/Theme.XposedInstaller.Transparent"/>
+        <activity
+            android:name=".AboutActivity"
+            android:theme="@style/Theme.XposedInstaller.Transparent"/>
+        <activity
+            android:name=".ModulesBookmark"
+            android:theme="@style/Theme.XposedInstaller.Transparent"/>
+        <activity
+            android:name=".installation.InstallationActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.XposedInstaller.Transparent"/>
+
+        <receiver
+            android:name=".receivers.PackageChangeReceiver"
+            android:exported="false">
+            <!-- 表示接受那种类型的广播 -->
+            <intent-filter>
+                <!-- 安装了新应用程序包的广播 -->
+                <action android:name="android.intent.action.PACKAGE_ADDED"/>
+                <!-- 应用程序包的信息发生变化的广播 -->
+                <action android:name="android.intent.action.PACKAGE_CHANGED"/>
+                <!-- 卸载了应用程序包的广播 -->
+                <action android:name="android.intent.action.PACKAGE_REMOVED"/>
+
+                <data android:scheme="package"/>
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".receivers.DownloadReceiver"
+            android:exported="true"
+            android:permission="android.permission.SEND_DOWNLOAD_COMPLETED_INTENTS">
+            <!-- 只有在具备该权限的应用程序才能发送与该广播接收器相关的下载完成广播 -->
+            <intent-filter>
+                <!-- 下载完成的广播 -->
+                <action android:name="android.intent.action.DOWNLOAD_COMPLETE"/>
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".util.NotificationUtil$RebootReceiver"
+            android:exported="false"/>
+
+        <provider
+            android:name="android.support.v4.content.FileProvider"
+            android:authorities="de.robv.android.xposed.installer.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"/>
+        </provider>
+
+    </application>
+
+</manifest>
