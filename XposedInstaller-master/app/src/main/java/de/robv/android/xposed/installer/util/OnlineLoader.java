@@ -7,7 +7,7 @@ import android.net.NetworkInfo;
 import android.support.annotation.CallSuper;
 
 import de.robv.android.xposed.installer.XposedApp;
-
+//这个类主要还是检查是否有网络
 public abstract class OnlineLoader<T> extends Loader<T> {
     //以当前包名的文件
     protected SharedPreferences mPref = XposedApp.getPreferences();
@@ -17,7 +17,7 @@ public abstract class OnlineLoader<T> extends Loader<T> {
     // ConnectivityManager 是 Android 提供的一个系统服务类，用于管理设备的网络连接状态和网络相关的操作
     private static final ConnectivityManager sConMgr
             = (ConnectivityManager) XposedApp.getInstance().getSystemService(Context.CONNECTIVITY_SERVICE);
-
+    //这个覆盖了父类的shouldUpdate,会影响triggerReload,从而影响mListeners的通知
     protected boolean shouldUpdate() {
         long now = System.currentTimeMillis();
         long lastUpdateCheck = mPref.getLong(mPrefKeyLastUpdateCheck, 0);
