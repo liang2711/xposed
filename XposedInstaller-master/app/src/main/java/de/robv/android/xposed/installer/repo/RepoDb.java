@@ -73,6 +73,7 @@ public final class RepoDb extends SQLiteOpenHelper {
         db.execSQL(RepoDbDefinitions.SQL_CREATE_TEMP_VIEW_INSTALLED_MODULES_UPDATES);
     }
 
+    //更新数据表
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         // This is only a cache, so simply drop & recreate the tables
@@ -80,7 +81,6 @@ public final class RepoDb extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS " + ModulesColumns.TABLE_NAME);
         db.execSQL("DROP TABLE IF EXISTS " + ModuleVersionsColumns.TABLE_NAME);
         db.execSQL("DROP TABLE IF EXISTS " + MoreInfoColumns.TABLE_NAME);
-
         db.execSQL("DROP TABLE IF EXISTS " + InstalledModulesColumns.TABLE_NAME);
         db.execSQL("DROP VIEW IF EXISTS " + InstalledModulesUpdatesColumns.VIEW_NAME);
 
@@ -92,7 +92,11 @@ public final class RepoDb extends SQLiteOpenHelper {
     public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         onUpgrade(db, oldVersion, newVersion);
     }
-    //以独占模式开始事务
+    /**
+     * 以独占模式开始事务
+     * 事务：可看作交给数据库执行的一堆的spl指令
+     * 它包含原则性，一致性，隔离性，持久性
+     * */
     public static void beginTransation() {
         sDb.beginTransaction();
     }
@@ -106,8 +110,11 @@ public final class RepoDb extends SQLiteOpenHelper {
     }
 
     private static String getString(String table, String searchColumn, String searchValue, String resultColumn) {
+        //查阅表中那一列，这里只设置了一列
         String[] projection = new String[]{resultColumn};
+        //查阅条件
         String where = searchColumn + " = ?";
+        //占位符的值（？为占位符）
         String[] whereArgs = new String[]{searchValue};
         Cursor c = sDb.query(table, projection, where, whereArgs, null, null, null, "1");
         if (c.moveToFirst()) {
@@ -120,9 +127,11 @@ public final class RepoDb extends SQLiteOpenHelper {
         }
     }
 
+    //对repositories表进行操作
     public static long insertRepository(String url) {
         ContentValues values = new ContentValues();
         values.put(RepositoriesColumns.URL, url);
+        //插入错误直接抛异常
         return sDb.insertOrThrow(RepositoriesColumns.TABLE_NAME, null, values);
     }
 
@@ -171,6 +180,7 @@ public final class RepoDb extends SQLiteOpenHelper {
         sDb.update(RepositoriesColumns.TABLE_NAME, values, RepositoriesColumns._ID + " = ?", new String[]{Long.toString(repoId)});
     }
 
+    //对modules表进行操作
     public static long insertModule(long repoId, Module mod) {
         ContentValues values = new ContentValues();
         values.put(ModulesColumns.REPO_ID, repoId);
@@ -183,7 +193,7 @@ public final class RepoDb extends SQLiteOpenHelper {
         values.put(ModulesColumns.SUPPORT, mod.support);
         values.put(ModulesColumns.CREATED, mod.created);
         values.put(ModulesColumns.UPDATED, mod.updated);
-
+        //获得大于
         ModuleVersion latestVersion = RepoLoader.getInstance().getLatestVersion(mod);
 
         sDb.beginTransaction();
@@ -191,18 +201,21 @@ public final class RepoDb extends SQLiteOpenHelper {
             long moduleId = sDb.insertOrThrow(ModulesColumns.TABLE_NAME, null, values);
 
             long latestVersionId = -1;
+            //下面插入的表都是互相外键的
+            //获得module里的list<ModuleVersion>的数据 把数据插入moduleversion(简称mv表了)表中
             for (ModuleVersion version : mod.versions) {
                 long versionId = insertModuleVersion(moduleId, version);
                 if (latestVersion == version)
                     latestVersionId = versionId;
             }
-
+            //更新modules表的lastest_version,这个对应着一个modulesversion数据
             if (latestVersionId > -1) {
                 values = new ContentValues();
                 values.put(ModulesColumns.LATEST_VERSION, latestVersionId);
                 sDb.update(ModulesColumns.TABLE_NAME, values, ModulesColumns._ID + " = ?", new String[]{Long.toString(moduleId)});
             }
 
+            //插入数据给more_info表
             for (Pair<String, String> moreInfoEntry : mod.moreInfo) {
                 insertMoreInfo(moduleId, moreInfoEntry.first, moreInfoEntry.second);
             }
@@ -340,7 +353,7 @@ public final class RepoDb extends SQLiteOpenHelper {
     public static String getModuleSupport(String packageName) {
         return getString(ModulesColumns.TABLE_NAME, ModulesColumns.PKGNAME, packageName, ModulesColumns.SUPPORT);
     }
-
+    //如果reltype <= getMaxShownReleaseType(packageName) 和isversionshown()判断条件差不多
     public static void updateModuleLatestVersion(String packageName) {
         int maxShownReleaseType = RepoLoader.getInstance().getMaxShownReleaseType(packageName).ordinal();
         sDb.execSQL("UPDATE " + ModulesColumns.TABLE_NAME
