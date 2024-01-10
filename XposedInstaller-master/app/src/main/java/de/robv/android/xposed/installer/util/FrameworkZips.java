@@ -40,7 +40,7 @@ import de.robv.android.xposed.installer.util.InstallZipUtil.ZipCheckResult;
 public final class FrameworkZips {
     public static final String ARCH = getArch();
     public static final String SDK = Integer.toString(Build.VERSION.SDK_INT);
-
+    //data/data/{packageName}/
     private static final File ONLINE_FILE = new File(XposedApp.getInstance().getCacheDir(), "framework.json");
     private static final String ONLINE_URL = "http://dl-xda.xposed.info/framework.json";
 
@@ -60,14 +60,16 @@ public final class FrameworkZips {
             this.text_flash_recovery = text_flash_recovery;
         }
     }
+    //2
     private static final int TYPE_COUNT = Type.values().length;
 
     @SuppressWarnings("rawtypes")
     private static final Map[] EMPTY_MAP_ARRAY = new Map[TYPE_COUNT];
     static {
+        //初始化引用数组
         Arrays.fill(EMPTY_MAP_ARRAY, Collections.emptyMap());
     }
-
+    //创建泛指类型的数组，在java中不能直接创建泛指类型的数组，只有想下面强制转换才行
     private static Map<String, OnlineFrameworkZip>[] sOnline = emptyMapArray();
     private static Map<String, List<LocalFrameworkZip>>[] sLocal = emptyMapArray();
 
@@ -110,6 +112,7 @@ public final class FrameworkZips {
     private static Map<String, OnlineFrameworkZip>[] getOnline() {
         String text;
         try {
+            //获得framework.json文件
             text = fileToString(ONLINE_FILE);
         } catch (FileNotFoundException e) {
             return emptyMapArray();
@@ -119,6 +122,7 @@ public final class FrameworkZips {
         }
 
         try {
+            //解析framework.json文件
             JSONObject json = new JSONObject(text);
 
             //noinspection unchecked
@@ -160,6 +164,7 @@ public final class FrameworkZips {
     }
 
     private static void parseZipSpec(JSONObject jsonZip, Map<String, OnlineFrameworkZip>[] zipsArray) throws JSONException {
+        //获得framework.json的archs,和sdks这个是支持版本，如果当前Android不是支持版本退出
         if (!contains(jsonZip, "archs", ARCH) || !contains(jsonZip, "sdks", SDK)) {
             return;
         }
@@ -177,6 +182,7 @@ public final class FrameworkZips {
             Log.w(XposedApp.TAG, "Unsupported framework zip type: " + typeString);
             return;
         }
+        //在本地看framework上看是没有type这个属性的，所以type.ordinal=1(INSTALLER)
         Map<String, OnlineFrameworkZip> zips = zipsArray[type.ordinal()];
 
         Map<String, String> attributes = new HashMap<>(3);
@@ -184,6 +190,7 @@ public final class FrameworkZips {
         JSONArray jsonVersions = jsonZip.optJSONArray("versions");
         if (jsonVersions != null) {
             Set<String> excludes = Collections.emptySet();
+            //没有这个属性
             JSONArray jsonExcludes = jsonZip.optJSONArray("exclude");
             if (jsonExcludes != null) {
                 excludes = new HashSet<>();
@@ -208,6 +215,7 @@ public final class FrameworkZips {
                 attributes.clear();
                 attributes.put("arch", ARCH);
                 attributes.put("sdk", SDK);
+                //获取versions里的version[i]的内容
                 parseAttributes(versionData, attributes);
 
                 addZip(zips, titleTemplate, urlTemplate, attributes,
@@ -258,7 +266,7 @@ public final class FrameworkZips {
             zips.put(zip.title, zip);
         }
     }
-
+    //解析json里的$()
     private static String replacePlaceholders(String template, Map<String, String> values) {
         if (!template.contains("$(")) {
             return template;
@@ -395,7 +403,7 @@ public final class FrameworkZips {
             }
         }
     }
-
+    //获得当前Android的架构
     @SuppressWarnings("deprecation")
     private static String getArch() {
         if (Build.CPU_ABI.equals("arm64-v8a")) {
