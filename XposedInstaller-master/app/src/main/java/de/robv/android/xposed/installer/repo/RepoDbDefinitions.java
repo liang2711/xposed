@@ -45,6 +45,8 @@ public class RepoDbDefinitions {
         public static final String PREFERRED = "preferred";
         public static final String LATEST_VERSION = "latest_version_id";
     }
+    //在第二参数，设置repositories表为外键,repositories为当前表的主表
+    //且on delete casecade就是如果主表某个子元素被删除时使用主表的子元素的子元素也会被删除
     static final String SQL_CREATE_TABLE_MODULES =
             "CREATE TABLE " + ModulesColumns.TABLE_NAME + " (" +
                     ModulesColumns._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
