@@ -52,10 +52,10 @@ import de.robv.android.xposed.installer.util.Loader;
 import de.robv.android.xposed.installer.util.NavUtil;
 import de.robv.android.xposed.installer.util.RootUtil;
 import de.robv.android.xposed.installer.util.RunnableWithParam;
-
+//这个是真正xposed install的主界面
 public class StatusInstallerFragment extends Fragment {
 
-    //创建这个文件
+    //获得路径file对象
     public static final File DISABLE_FILE = new File(XposedApp.BASE_DIR + "conf/disabled");
     private boolean mShowOutdated = false;
 
@@ -75,11 +75,13 @@ public class StatusInstallerFragment extends Fragment {
         // Available ZIPs
         final SwipeRefreshLayout refreshLayout = (SwipeRefreshLayout) v.findViewById(R.id.swiperefreshlayout);
         refreshLayout.setColorSchemeColors(getResources().getColor(R.color.colorPrimary));
-
+        
+        //OnlineZipLoader
         ONLINE_ZIP_LOADER.setSwipeRefreshLayout(refreshLayout);
         ONLINE_ZIP_LOADER.addListener(mOnlineZipListener);
         ONLINE_ZIP_LOADER.triggerFirstLoadIfNecessary();
 
+        //LocalZipLoader
         LOCAL_ZIP_LOADER.addListener(mLocalZipListener);
         LOCAL_ZIP_LOADER.triggerFirstLoadIfNecessary();
 
