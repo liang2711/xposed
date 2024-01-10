@@ -30,7 +30,7 @@ import de.robv.android.xposed.installer.repo.RepoParser;
 import de.robv.android.xposed.installer.repo.RepoParser.RepoParserCallback;
 import de.robv.android.xposed.installer.repo.Repository;
 import de.robv.android.xposed.installer.util.DownloadsUtil.SyncDownloadInfo;
-//更新版本的
+
 public class RepoLoader extends OnlineLoader<RepoLoader> {
     private static final String DEFAULT_REPOSITORIES = "http://dl.xposed.info/repo/full.xml.gz";
     private static RepoLoader mInstance = null;
@@ -61,7 +61,7 @@ public class RepoLoader extends OnlineLoader<RepoLoader> {
         mRepositories = RepoDb.getRepositories();
 
 		// Unlikely case (usually only during initial load): DB state doesn't
-		// fit to configuration
+		// fit to configuration 当本地和数据不相时需要重新加载
 		boolean needReload = false;
         String[] config = mPref.getString("repositories", DEFAULT_REPOSITORIES).split("\\|");
         if (mRepositories.size() != config.length) {
@@ -78,7 +78,7 @@ public class RepoLoader extends OnlineLoader<RepoLoader> {
 
         if (!needReload)
             return false;
-
+        //不通知mListeners下对更新时间清楚
         clear(false);
         for (String url : config) {
             RepoDb.insertRepository(url);
@@ -88,6 +88,7 @@ public class RepoLoader extends OnlineLoader<RepoLoader> {
         return true;
     }
 
+    //当全局类型发生变化更新所有modules的last_version 并通知当前loader的mListeners
     public void setReleaseTypeGlobal(String relTypeString) {
         ReleaseType relType = ReleaseType.fromString(relTypeString);
         if (mGlobalReleaseType == relType)
@@ -118,7 +119,7 @@ public class RepoLoader extends OnlineLoader<RepoLoader> {
         RepoDb.updateModuleLatestVersion(packageName);
         notifyListeners();
     }
-
+    //这里的packagename 可能是定义hook的app或者被hook的app(获得当前packageName的release_type)
     private ReleaseType getReleaseTypeLocal(String packageName) {
         synchronized (mLocalReleaseTypesCache) {
             if (mLocalReleaseTypesCache.containsKey(packageName))
@@ -140,23 +141,34 @@ public class RepoLoader extends OnlineLoader<RepoLoader> {
     public Module getModule(String packageName) {
         return RepoDb.getModuleByPackageName(packageName);
     }
-
+    /**
+     * 获得在module表里子元素latest_version,latest_version对应着module_version表的外键
+     * 也就是说latest_version对应着module_version表中的一段数据
+     *  
+     * 下列函数获取modules的latest_version，获取条件是查看module参数中的list<moduleversion>
+     * moduleversion中的module.packageName对应的releasetype是否大于ms的rt，是大于就返回
+     * 
+     */
     public ModuleVersion getLatestVersion(Module module) {
         if (module == null || module.versions.isEmpty())
             return null;
-        //ModuleVersion是一个表
+
         for (ModuleVersion version : module.versions) {
             if (version.downloadLink != null && isVersionShown(version))
                 return version;
         }
         return null;
     }
-
+    //本地的releasetype是否大于数据库的
     public boolean isVersionShown(ModuleVersion version) {
         return version.relType
                 .ordinal() <= getMaxShownReleaseType(version.module.packageName).ordinal();
     }
-
+    /*
+     *查看本地存储的releasetype库有没有packageName对应的releasetype
+     如果找不到就直接用 mGlobalReleaseType
+     不然用packageName对应的releasetype
+     * */
     public ReleaseType getMaxShownReleaseType(String packageName) {
         ReleaseType localSetting = getReleaseTypeLocal(packageName);
         if (localSetting != null)
