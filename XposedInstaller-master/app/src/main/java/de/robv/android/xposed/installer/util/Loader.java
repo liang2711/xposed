@@ -6,20 +6,28 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import de.robv.android.xposed.installer.XposedApp;
-
+/**
+ * 这个类里主要是为了对SwipeRefreshLayout进行拉下控件刷新
+ * 对linstener<t>进行通知    对于继承的loader他们数据是独立的
+ * 
+ * 在三个加载类中对应着repo数据库加载,online线上加载,local本地加载
+ */
 public abstract class Loader<T> implements SwipeRefreshLayout.OnRefreshListener {
     //获取当前对象所属类的简单名称
     protected final String CLASS_NAME = getClass().getSimpleName();
     private boolean mIsLoading = false;
+    //trigger触发
     private boolean mReloadTriggeredOnce = false;
     /**
      * Listener是自定义的一个接口
      * CopyOnWriteArrayList<>() 是对 List 接口的实现类，它是线程安全的，支持并发读写操作。
      * 它是通过在写操作时创建底层数组的副本来实现线程安全，因此适用于读操作频繁、写操作相对较少的场景。
+     * 
+     * <T>为listener监听里要处理的数据
+     * 这里测试过在不加static前提下子类数据不会被共享
      */
     private final List<Listener<T>> mListeners = new CopyOnWriteArrayList<>();
     private SwipeRefreshLayout mSwipeRefreshLayout;
-
     public void triggerReload(final boolean force) {
         synchronized (this) {
             if (!mReloadTriggeredOnce) {
@@ -27,24 +35,26 @@ public abstract class Loader<T> implements SwipeRefreshLayout.OnRefreshListener 
                 mReloadTriggeredOnce = true;
             }
         }
-
+        //shouldUpdate方法当被子类覆盖时，子类调用triggerReload这个shouldUpdate会用子类的
         if (!force && !shouldUpdate()) {
             return;
         }
-        //第一次加载
         synchronized (this) {
-            //如果已加载退出
+            //如果正在加载退出
             if (mIsLoading) {
                 return;
             }
             mIsLoading = true;
+            //mSwipeRefreshLayout控件下拉刷新
             updateProgressIndicator();
         }
 
+        //调用子类的onReload();
         new Thread("Reload" + CLASS_NAME) {
             public void run() {
                 boolean hasChanged = onReload();
                 if (hasChanged) {
+                    //通知所有的监听者
                     notifyListeners();
                 }
 
@@ -129,6 +139,7 @@ public abstract class Loader<T> implements SwipeRefreshLayout.OnRefreshListener 
         swipeRefreshLayout.setOnRefreshListener(this);
     }
 
+    //这是控件刷新时操作
     @Override
     public void onRefresh() {
         triggerReload(true);
@@ -146,9 +157,7 @@ public abstract class Loader<T> implements SwipeRefreshLayout.OnRefreshListener 
                     //在主线程中更新控件
                     if (mSwipeRefreshLayout != null) {
                         /**
-                         * 是否刷新 到这里就是说作者是按照SwipeRefreshLoayout机制对应用更新
-                         * 但自己设置的条件进行跟新，比如mIsLoading，无论请求刷新多少次mIsLoading为false不更新
-                         * SwipeRefreshLoayout 下拉刷新 true为刷新
+                         * 是否控件是为刷新状态,false关闭控件刷新,true开启控件刷新
                          */
                         mSwipeRefreshLayout.setRefreshing(mIsLoading);
                     }
