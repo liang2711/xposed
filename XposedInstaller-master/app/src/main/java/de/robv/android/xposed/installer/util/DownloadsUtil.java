@@ -122,11 +122,12 @@ public class DownloadsUtil {
         * 而下面是获取了/storage/emulated/0/Android/data/<package_name>/cache/downloads/{subDir}的文件类对象
         */
         for (File dir : ContextCompat.getExternalCacheDirs(context)) {
+            //查看dir是否被挂载
             if (dir != null && EnvironmentCompat.getStorageState(dir).equals(Environment.MEDIA_MOUNTED)) {
                 dirs.add(new File(new File(dir, "downloads"), subDir));
             }
         }
-        //获取了/data/user/0/<package_Name>/cache/downloads/{subDir} 意义不明
+        //获取了/data/user/0/<package_Name>/cache/downloads/{subDir} 意义不明 经过as的测试
         dirs.add(new File(new File(context.getCacheDir(), "downloads"), subDir));
         return dirs.toArray(new File[dirs.size()]);
     }
@@ -162,15 +163,16 @@ public class DownloadsUtil {
             }
         }
 
-        // 增加新下载任务  uri.parse(b.murl)将url转换成uri
+        // request封装一个下载请求 增加新下载任务  uri.parse(b.murl)将url转换成uri
         Request request = new Request(Uri.parse(b.mUrl));
         request.setTitle(b.mTitle);
         request.setMimeType(b.mMimeType.toString());
+        //创建文件
         if (b.mDestination != null) {
             b.mDestination.getParentFile().mkdirs();
 
             removeAllForLocalFile(context, b.mDestination);
-            //将b.mDestination转为uri
+            //将b.mDestination转为uri 设置下载文件后存入哪里，他必须是外部内存的
             request.setDestinationUri(Uri.fromFile(b.mDestination));
         }
         request.setNotificationVisibility(Request.VISIBILITY_VISIBLE);
@@ -289,7 +291,7 @@ public class DownloadsUtil {
         }
         return null;
     }
-    //获得任务信息
+    //获得任务信息(这个任务还没执行完)
     public static DownloadInfo getById(Context context, long id) {
         DownloadManager dm = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
         Cursor c = dm.query(new Query().setFilterById(id));
@@ -309,6 +311,7 @@ public class DownloadsUtil {
         int columnReason = c.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON);
 
         int status = c.getInt(columnStatus);
+        //获得任务储存地址，在设置DestinationUri子目录
         String localFilename = getFilenameFromUri(c.getString(columnLocalUri));
         if (status == DownloadManager.STATUS_SUCCESSFUL && !new File(localFilename).isFile()) {
             dm.remove(id);
@@ -329,7 +332,7 @@ public class DownloadsUtil {
         List<DownloadInfo> all = getAllForUrl(context, url);
         return all.isEmpty() ? null : all.get(0);
     }
-
+    //获得所有任务信息
     public static List<DownloadInfo> getAllForUrl(Context context, String url) {
         DownloadManager dm = (DownloadManager) context
                 .getSystemService(Context.DOWNLOAD_SERVICE);
@@ -448,7 +451,7 @@ public class DownloadsUtil {
 
         dm.remove(ids);
     }
-
+    //删除过时任务以修改下载任务的时间戳来判断
     public static void removeOutdated(Context context, long cutoff) {
         DownloadManager dm = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
         Cursor c = dm.query(new Query());
@@ -472,7 +475,7 @@ public class DownloadsUtil {
 
         dm.remove(ids);
     }
-
+    //执行下载任务完成后的函数
     public static void triggerDownloadFinishedCallback(Context context, long id) {
         DownloadInfo info = getById(context, id);
         if (info == null || info.status != DownloadManager.STATUS_SUCCESSFUL)
@@ -502,6 +505,7 @@ public class DownloadsUtil {
      * URL用于定位和访问网络资源，可以通过URL进行网络请求、下载文件等操作.
      * 
      * 也要注意这里的uri它只识别file or content类型 没有识别网络连接
+     * 这里获得uri的文件路径
      */
     private static String getFilenameFromUri(String uriString) {
         if (uriString == null) {
@@ -529,8 +533,9 @@ public class DownloadsUtil {
             throw new UnsupportedOperationException("Unexpected URI: " + uriString);
         }
     }
-
+    //设置更新资源
     public static SyncDownloadInfo downloadSynchronously(String url, File target) {
+        //是否存在
         final boolean useNotModifiedTags = target.exists();
 
         URLConnection connection = null;
@@ -549,13 +554,22 @@ public class DownloadsUtil {
                 }
 
                 if (useNotModifiedTags) {
+                    //mPred=download_cache.xml
                     String modified = mPref.getString("download_" + url + "_modified", null);
                     String etag = mPref.getString("download_" + url + "_etag", null);
 
                     if (modified != null) {
+                        /**用于指定上次请求资源的修改时间。服务器可以根据这个属性值进行判断，
+                         * 如果上次请求的资源自从指定时间以来没有修改，则返回 HTTP 304 Not Modified 状态码，
+                         * 表示资源未修改，客户端可以使用缓存的版本 */
                         connection.addRequestProperty("If-Modified-Since", modified);
                     }
                     if (etag != null) {
+                        /**
+                         * 它用于指定上次请求资源时服务器返回的实体标签（ETag）。
+                         * 服务器会将资源的实体标签（通常是一个哈希值或版本号）与客户端提供的 If-None-Match 属性值进行比较。如果两者匹配，
+                         * 表示资源未发生改变，服务器将返回 HTTP 304 Not Modified 状态码，客户端可以使用缓存的版本
+                         */
                         connection.addRequestProperty("If-None-Match", etag);
                     }
                 }
