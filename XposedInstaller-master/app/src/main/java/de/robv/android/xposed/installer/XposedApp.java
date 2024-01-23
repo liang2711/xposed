@@ -51,7 +51,7 @@ public class XposedApp extends Application implements ActivityLifecycleCallbacks
 
     public static final String ENABLED_MODULES_LIST_FILE = XposedApp.BASE_DIR + "conf/enabled_modules.list";
 
-    //对应着XposedProp类的数据，也只能对应着一个文件 /system优先级最高
+    //对应着XposedProp类的数据，也只能对应着一个文件 /system优先级最高 记录着ARCH，xposedversion,sdk(min,max)等
     private static final String[] XPOSED_PROP_FILES = new String[]{
             "/su/xposed/xposed.prop", // official systemless
             "/system/xposed.prop",    // classical
@@ -108,7 +108,10 @@ public class XposedApp extends Application implements ActivityLifecycleCallbacks
         installIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         Uri uri;
         if (Build.VERSION.SDK_INT >= 24) {
-            //创建文件de.robv.android.xposed.installer.fileprovider.
+            /**
+             * 得到info.localFilename文件资源uri(目录在file_path.xml中)，key=de.robv.android.xposed.installer.fileprovider
+             * 分享文件
+             */
             uri = FileProvider.getUriForFile(context, "de.robv.android.xposed.installer.fileprovider", new File(info.localFilename));
             installIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         } else {
@@ -130,6 +133,7 @@ public class XposedApp extends Application implements ActivityLifecycleCallbacks
         mUiThread = Thread.currentThread();
         mMainHandler = new Handler();
 
+        //和welcomeactivity一样的context
         mPref = PreferenceManager.getDefaultSharedPreferences(this);
         reloadXposedProp();
         createDirectories();
@@ -140,11 +144,13 @@ public class XposedApp extends Application implements ActivityLifecycleCallbacks
     }
 
     private void createDirectories() {
+        //在nox模拟器中sdk=25 /data/user_de/0/de.robv.android.xposed.installer/创建工作区
         FileUtils.setPermissions(BASE_DIR, 00711, -1, -1);
         mkdirAndChmod("conf", 00771);
         mkdirAndChmod("log", 00777);
 
         if (Build.VERSION.SDK_INT >= 24) {
+            //移除sdk24以下的工作区域
             try {
                 Method deleteDir = FileUtils.class.getDeclaredMethod("deleteContentsAndDir", File.class);
                 deleteDir.invoke(null, new File(BASE_DIR_LEGACY, "bin"));
@@ -171,6 +177,7 @@ public class XposedApp extends Application implements ActivityLifecycleCallbacks
                 FileInputStream is = null;
                 try {
                     is = new FileInputStream(file);
+                    //从路径中获取xposedProp
                     prop = InstallZipUtil.parseXposedProp(is);
                     break;
                 } catch (IOException e) {
