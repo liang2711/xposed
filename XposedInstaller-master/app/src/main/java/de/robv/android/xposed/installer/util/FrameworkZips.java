@@ -37,7 +37,11 @@ import de.robv.android.xposed.installer.util.DownloadsUtil.SyncDownloadInfo;
 import de.robv.android.xposed.installer.util.InstallZipUtil.XposedProp;
 import de.robv.android.xposed.installer.util.InstallZipUtil.ZipCheckResult;
 
+/**
+ * 获得zip的链接(online)和本地zip的地址(local)
+ */
 public final class FrameworkZips {
+    //得到Android机的内核编码格式
     public static final String ARCH = getArch();
     public static final String SDK = Integer.toString(Build.VERSION.SDK_INT);
     //data/data/{packageName}/
@@ -87,6 +91,7 @@ public final class FrameworkZips {
         }
     }
 
+    //zip文件的链接(http),在framework文件中解析
     public static class OnlineFrameworkZip extends FrameworkZip {
         public String url;
         public boolean current = true;
@@ -96,10 +101,12 @@ public final class FrameworkZips {
         }
     }
 
+    //获得已经下载完存入外部内存的zip文件路径
     public static class LocalFrameworkZip extends FrameworkZip {
         public File path;
     }
 
+    //这是基于framework.json文件来解析，获得json里的zip链接
     @WorkerThread
     private static void refreshOnline() {
         Map<String, OnlineFrameworkZip>[] zips = getOnline();
@@ -112,7 +119,7 @@ public final class FrameworkZips {
     private static Map<String, OnlineFrameworkZip>[] getOnline() {
         String text;
         try {
-            //获得framework.json文件
+            //获得在android机中的framework.json文件
             text = fileToString(ONLINE_FILE);
         } catch (FileNotFoundException e) {
             return emptyMapArray();
@@ -125,12 +132,12 @@ public final class FrameworkZips {
             //解析framework.json文件
             JSONObject json = new JSONObject(text);
 
-            //noinspection unchecked
+            //noinspection unchecked 在zipsArray里只有两种类型的zip uri [installer,uninstaller]
             Map<String, OnlineFrameworkZip>[] zipsArray = new Map[TYPE_COUNT];
             for (int i = 0; i < TYPE_COUNT; i++) {
                 zipsArray[i] = new LinkedHashMap<>();
             }
-
+            //获得framework.json文件中有多少个下载zip的uri
             JSONArray jsonZips = json.getJSONArray("zips");
             for (int i = 0; i < jsonZips.length(); i++) {
                 parseZipSpec(jsonZips.getJSONObject(i), zipsArray);
@@ -182,7 +189,7 @@ public final class FrameworkZips {
             Log.w(XposedApp.TAG, "Unsupported framework zip type: " + typeString);
             return;
         }
-        //在本地看framework上看是没有type这个属性的，所以type.ordinal=1(INSTALLER)
+        //在zipsArray里只有两个，当如果同一类型有了那么会直接覆盖
         Map<String, OnlineFrameworkZip> zips = zipsArray[type.ordinal()];
 
         Map<String, String> attributes = new HashMap<>(3);
@@ -190,14 +197,15 @@ public final class FrameworkZips {
         JSONArray jsonVersions = jsonZip.optJSONArray("versions");
         if (jsonVersions != null) {
             Set<String> excludes = Collections.emptySet();
-            //没有这个属性
             JSONArray jsonExcludes = jsonZip.optJSONArray("exclude");
             if (jsonExcludes != null) {
                 excludes = new HashSet<>();
                 for (int i = 0; i < jsonExcludes.length(); i++) {
                     JSONObject jsonExclude = jsonExcludes.getJSONObject(i);
+                    //在exclude中的sdks和archs是否包含着当前Android的版本
                     if (contains(jsonExclude, "archs", ARCH) && contains(jsonExclude, "sdks", SDK)) {
                         JSONArray jsonExcludeVersions = jsonExclude.getJSONArray("versions");
+                        //获得exclude里的versions的参数
                         for (int j = 0; j < jsonExcludeVersions.length(); j++) {
                             excludes.add(jsonExcludeVersions.getString(j));
                         }
@@ -205,6 +213,7 @@ public final class FrameworkZips {
                 }
             }
 
+            //获得versions里的version参数
             for (int i = 0; i < jsonVersions.length(); i++) {
                 JSONObject versionData = jsonVersions.getJSONObject(i);
                 String version = versionData.getString("version");
@@ -215,7 +224,7 @@ public final class FrameworkZips {
                 attributes.clear();
                 attributes.put("arch", ARCH);
                 attributes.put("sdk", SDK);
-                //获取versions里的version[i]的内容
+                //获取versions里的version[i]的内容加入attributes里
                 parseAttributes(versionData, attributes);
 
                 addZip(zips, titleTemplate, urlTemplate, attributes,
@@ -228,6 +237,7 @@ public final class FrameworkZips {
         }
     }
 
+    //是否obj里key中是否包含value
     private static boolean contains(JSONObject obj, String key, String value) throws JSONException {
         JSONArray array = obj.optJSONArray(key);
         if (array == null) {
@@ -240,7 +250,7 @@ public final class FrameworkZips {
         }
         return false;
     }
-
+    //获得obj里的值和key
     private static void parseAttributes(JSONObject obj, Map<String, String> attributes) throws JSONException {
         if (obj != null) {
             Iterator<String> it = obj.keys();
@@ -253,9 +263,10 @@ public final class FrameworkZips {
             }
         }
     }
-
+    //获取
     private static void addZip(Map<String, OnlineFrameworkZip> zips, String titleTemplate, String urlTemplate,
                                Map<String, String> attributes, boolean current, Type type) {
+        //获得framework.json里的内容进行对$()的解析
         String title = replacePlaceholders(titleTemplate, attributes);
         if (!zips.containsKey(title)) {
             OnlineFrameworkZip zip = new OnlineFrameworkZip();
@@ -291,7 +302,7 @@ public final class FrameworkZips {
         for (int i = 0; i < TYPE_COUNT; i++) {
             zipsArray[i] = new TreeMap<>();
         }
-
+        //获得下载的zip文件/storage/emulated/0/Android/data/<package_name>/cache/downloads/{subDir}
         for (File dir : DownloadsUtil.getDownloadDirs(DownloadsUtil.DOWNLOAD_FRAMEWORK)) {
             if (!dir.isDirectory()) {
                 continue;
@@ -300,10 +311,12 @@ public final class FrameworkZips {
                 if (!filename.endsWith(".zip")) {
                     continue;
                 }
+                //把zip文件存入zip对象，并且解析了一下文件里的数据给zip对象的参数
                 LocalFrameworkZip zip = analyze(new File(dir, filename));
                 if (zip != null) {
                     Map<String, List<LocalFrameworkZip>> zips = zipsArray[zip.type.ordinal()];
                     List<LocalFrameworkZip> list = zips.get(zip.title);
+                    //第一次加载的时候(以版本来看)
                     if (list == null) {
                         list = new ArrayList<>(1);
                         zips.put(zip.title, list);
@@ -324,7 +337,9 @@ public final class FrameworkZips {
 
     public static Set<String> getAllTitles(Type type) {
         //type.ordinal() 获得当前枚举的值的index type这个可能是第一个举值 也可能是第二个
+        //ketSet获得sOnline中所有的key
         Set<String> result = new LinkedHashSet<>(sOnline[type.ordinal()].keySet());
+        //加上sLocal的key
         result.addAll(sLocal[type.ordinal()].keySet());
         return result;
     }
@@ -365,6 +380,7 @@ public final class FrameworkZips {
         ZipFile zipFile = null;
         try {
             zipFile = new ZipFile(file);
+            //检查这个zip文件
             ZipCheckResult zcr = InstallZipUtil.checkZip(zipFile);
             if (!zcr.isValidZip()) {
                 return null;
@@ -438,6 +454,7 @@ public final class FrameworkZips {
             new Thread("OnlineZipInit") {
                 @Override
                 public void run() {
+                    //数据准备好了给监听着发送信息
                     refreshOnline();
                     notifyListeners();
                 }
@@ -446,6 +463,7 @@ public final class FrameworkZips {
 
         @Override
         protected boolean onReload() {
+            //这里正在开始下载framework文件,存入ONLINE_FILE里
             SyncDownloadInfo info = DownloadsUtil.downloadSynchronously(ONLINE_URL, ONLINE_FILE);
             switch (info.status) {
                 case SyncDownloadInfo.STATUS_NOT_MODIFIED:
