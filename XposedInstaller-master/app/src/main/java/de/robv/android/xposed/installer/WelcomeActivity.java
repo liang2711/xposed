@@ -76,7 +76,7 @@ public class WelcomeActivity extends XposedBaseActivity implements NavigationVie
         };
         mDrawerLayout.addDrawerListener(mDrawerToggle);
         mDrawerToggle.syncState();
-        //以当前包名创建或者获取一个存储文件
+        //以当前包名创建或者获取一个存储文件de.robv.android.xposed.installer.xml
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         mSelectedId = mNavigationView.getMenu().getItem(prefs.getInt("default_view", 0)).getItemId();
         //savedInstanceState为之前activity的bundle
