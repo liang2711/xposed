@@ -19,7 +19,7 @@ import de.robv.android.xposed.installer.BuildConfig;
 import de.robv.android.xposed.installer.R;
 import de.robv.android.xposed.installer.XposedApp;
 import de.robv.android.xposed.installer.installation.FlashCallback;
-
+//检查下载的zip文件，并且解析zip文件获得xposedProp
 public final class InstallZipUtil {
     private static final Set<String> FEATURES = new HashSet<>();
 
@@ -57,7 +57,7 @@ public final class InstallZipUtil {
             mZip = zip;
         }
     }
-
+    //检查zip文件
     public static ZipCheckResult checkZip(ZipFile zip) {
         ZipCheckResult result = new ZipCheckResult(zip);
 
@@ -77,6 +77,7 @@ public final class InstallZipUtil {
         ZipEntry xposedPropEntry = zip.getEntry("system/xposed.prop");
         if (xposedPropEntry != null) {
             try {
+                //从zip文件中获得xpsedProp文件信息
                 result.mXposedProp = parseXposedProp(zip.getInputStream(xposedPropEntry));
             } catch (IOException e) {
                 Log.e(XposedApp.TAG, "Failed to read system/xposed.prop from " + zip.getName(), e);
@@ -117,7 +118,7 @@ public final class InstallZipUtil {
         public boolean isSdkCompatible() {
             return mMinSdk <= Build.VERSION.SDK_INT && Build.VERSION.SDK_INT <= mMaxSdk;
         }
-
+        //移除在xposedprop文件中有带有FEATURES的requires
         public Set<String> getMissingInstallerFeatures() {
             Set<String> missing = new TreeSet<>(mRequires);
             missing.removeAll(FEATURES);
