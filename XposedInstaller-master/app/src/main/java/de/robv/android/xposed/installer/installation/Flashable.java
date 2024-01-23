@@ -17,7 +17,7 @@ import de.robv.android.xposed.installer.util.RootUtil;
 import static de.robv.android.xposed.installer.util.InstallZipUtil.closeSilently;
 import static de.robv.android.xposed.installer.util.InstallZipUtil.reportMissingFeatures;
 import static de.robv.android.xposed.installer.util.InstallZipUtil.triggerError;
-
+//Parcelable是在intend中存放数据集中的类
 public abstract class Flashable implements Parcelable {
     public static final String KEY = "flash";
 
