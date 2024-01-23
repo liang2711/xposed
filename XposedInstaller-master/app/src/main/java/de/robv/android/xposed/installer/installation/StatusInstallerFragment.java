@@ -76,7 +76,7 @@ public class StatusInstallerFragment extends Fragment {
         final SwipeRefreshLayout refreshLayout = (SwipeRefreshLayout) v.findViewById(R.id.swiperefreshlayout);
         refreshLayout.setColorSchemeColors(getResources().getColor(R.color.colorPrimary));
         
-        //OnlineZipLoader
+        //OnlineZipLoader注意每个loader的listeners是一个独立空间，子类不共享
         ONLINE_ZIP_LOADER.setSwipeRefreshLayout(refreshLayout);
         ONLINE_ZIP_LOADER.addListener(mOnlineZipListener);
         ONLINE_ZIP_LOADER.triggerFirstLoadIfNecessary();
@@ -272,6 +272,7 @@ public class StatusInstallerFragment extends Fragment {
                 .show();
     }
 
+    //获取绝对路径
     private File getCanonicalFile(File file) {
         try {
             return file.getCanonicalFile();
@@ -295,10 +296,13 @@ public class StatusInstallerFragment extends Fragment {
         final String issueLink;
         final ApplicationInfo appInfo = getActivity().getApplicationInfo();
         final File baseDir = new File(XposedApp.BASE_DIR);
+        
         final File baseDirCanonical = getCanonicalFile(baseDir);
+        //应用程序的数据目录路径
         final File baseDirActual = new File(Build.VERSION.SDK_INT >= 24 ? appInfo.deviceProtectedDataDir : appInfo.dataDir);
         final File baseDirActualCanonical = getCanonicalFile(baseDirActual);
         final InstallZipUtil.XposedProp prop = XposedApp.getXposedProp();
+        //获取缺少的安装程序功能(机翻)   getMissingInstallerFeatures
         final Set<String> missingFeatures = prop != null ? prop.getMissingInstallerFeatures() : null;
 
         if (missingFeatures != null && !missingFeatures.isEmpty()) {
@@ -334,6 +338,7 @@ public class StatusInstallerFragment extends Fragment {
             txtKnownIssue.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+                    //跳转于网页
                     NavUtil.startURL(getActivity(), issueLink);
                 }
             });
@@ -369,11 +374,15 @@ public class StatusInstallerFragment extends Fragment {
     }
 
     private String getUIFramework() {
+        //表示设备的制造商的名字
         String manufacturer = Character.toUpperCase(Build.MANUFACTURER.charAt(0)) + Build.MANUFACTURER.substring(1);
+        //检查设备的品牌是否与制造商相同
         if (!Build.BRAND.equals(Build.MANUFACTURER)) {
+            //如果品牌与制造商不同，则需要将品牌信息添加到manufacturer字符串中
             manufacturer += " " + Character.toUpperCase(Build.BRAND.charAt(0)) + Build.BRAND.substring(1);
         }
         manufacturer += " " + Build.MODEL + " ";
+        //查看是否有制造商的ui包如果有就用没有用原生的
         if (manufacturer.contains("Samsung")) {
             manufacturer += new File("/system/framework/twframework.jar").exists() ? "(TouchWiz)" : "(AOSP-based ROM)";
         } else if (manufacturer.contains("Xioami")) {
@@ -387,7 +396,7 @@ public class StatusInstallerFragment extends Fragment {
             Class<?> c = Class.forName("android.os.SystemProperties");
             Method m = c.getDeclaredMethod("get", String.class, String.class);
             m.setAccessible(true);
-
+            //系统变量partition.system.verified代表系统分区（partition）的验证状态
             String propSystemVerified = (String) m.invoke(null, "partition.system.verified", "0");
             String propState = (String) m.invoke(null, "ro.boot.verifiedbootstate", "");
             File fileDmVerityModule = new File("/sys/module/dm_verity");
@@ -410,6 +419,7 @@ public class StatusInstallerFragment extends Fragment {
         }
     }
 
+    //显示当前zip包(verison89)
     @UiThread
     private void refreshZipViews(View view) {
         LinearLayout zips = (LinearLayout) view.findViewById(R.id.zips);
@@ -432,9 +442,10 @@ public class StatusInstallerFragment extends Fragment {
             }
         }
     }
-
+    //获得不过期的zip文件
     private boolean addZipViews(LayoutInflater inflater, ViewGroup root, FrameworkZips.Type type) {
         ViewGroup container = null;
+        //获得当前zip（online和local所有的zip文件的title=xposed版本）
         Set<String> allTitles = FrameworkZips.getAllTitles(type);
         for (String title : allTitles) {
             OnlineFrameworkZip online = FrameworkZips.getOnline(title, type);
@@ -443,6 +454,7 @@ public class StatusInstallerFragment extends Fragment {
             boolean hasOnline = (online != null);
             boolean hasLocal = (local != null);
             FrameworkZip zip = hasOnline ? online : local;
+            //获取的xposed是否过期
             boolean isOutdated = zip.isOutdated();
 
             if (isOutdated && !mShowOutdated) {
@@ -462,7 +474,7 @@ public class StatusInstallerFragment extends Fragment {
 
         return !allTitles.isEmpty();
     }
-
+    //显示view中版本
     public void addZipView(LayoutInflater inflater, ViewGroup container, final FrameworkZip zip,
                            boolean hasOnline, boolean hasLocal, boolean isOutdated) {
         View view = inflater.inflate(R.layout.framework_zip_item, container, false);
@@ -494,7 +506,7 @@ public class StatusInstallerFragment extends Fragment {
         });
         container.addView(view);
     }
-
+    //显示一个对话框操作FrameworkZips
     private void showActionDialog(final Context context, final String title, final FrameworkZips.Type type) {
         final int ACTION_FLASH = 0;
         final int ACTION_FLASH_RECOVERY = 1;
@@ -517,7 +529,7 @@ public class StatusInstallerFragment extends Fragment {
         texts[i] = "Save to...";
         ids[i++] = ACTION_SAVE;
         */
-
+        //是否包含title
         if (FrameworkZips.hasLocal(title, type)) {
             texts[i] = context.getString(R.string.framework_delete);
             ids[i++] = ACTION_DELETE;
@@ -535,6 +547,7 @@ public class StatusInstallerFragment extends Fragment {
                         // Handle delete simple actions.
                         if (action == ACTION_DELETE) {
                             FrameworkZips.delete(context, title, type);
+                            //通知所有监听者
                             LOCAL_ZIP_LOADER.triggerReload(true);
                             return;
                         }
@@ -604,6 +617,7 @@ public class StatusInstallerFragment extends Fragment {
     }
 
     private void refreshZipViewsOnUiThread() {
+        //main线程执行
         XposedApp.runOnUiThread(new Runnable() {
             @Override
             public void run() {
