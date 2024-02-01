@@ -17,7 +17,9 @@ import de.robv.android.xposed.installer.util.RootUtil;
 import static de.robv.android.xposed.installer.util.InstallZipUtil.closeSilently;
 import static de.robv.android.xposed.installer.util.InstallZipUtil.reportMissingFeatures;
 import static de.robv.android.xposed.installer.util.InstallZipUtil.triggerError;
-//Parcelable是在intend中存放数据集中的类
+/**Parcelable是在intend中存放数据集中的类
+ * 可以将Parcel看成是一个流，通过writeToParcel把对象写到流里面，在通过createFromParcel从流里读取对象
+*/
 public abstract class Flashable implements Parcelable {
     public static final String KEY = "flash";
 
@@ -31,6 +33,7 @@ public abstract class Flashable implements Parcelable {
         mTitle = title;
     }
 
+    //从parcel流里取数据
     protected Flashable(Parcel in) {
         mZipPath = (File) in.readSerializable();
         mType = (FrameworkZips.Type) in.readSerializable();
@@ -56,7 +59,7 @@ public abstract class Flashable implements Parcelable {
             closeSilently(zip);
             return null;
         }
-
+        //xposedprop是否为空
         if (zipCheck.hasXposedProp()) {
             Set<String> missingFeatures = zipCheck.getXposedProp().getMissingInstallerFeatures();
             if (!missingFeatures.isEmpty()) {
@@ -78,6 +81,7 @@ public abstract class Flashable implements Parcelable {
         return mTitle;
     }
 
+    //给rootutil什么指令
     public RootUtil.RebootMode getRebootMode() {
         return RootUtil.RebootMode.NORMAL;
     }
@@ -87,6 +91,7 @@ public abstract class Flashable implements Parcelable {
         return 0;
     }
 
+    //存入数据给parcel
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeSerializable(mZipPath);
