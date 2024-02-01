@@ -79,6 +79,7 @@ public class StatusInstallerFragment extends Fragment {
         //OnlineZipLoader注意每个loader的listeners是一个独立空间，子类不共享
         ONLINE_ZIP_LOADER.setSwipeRefreshLayout(refreshLayout);
         ONLINE_ZIP_LOADER.addListener(mOnlineZipListener);
+        //这里开始下载frameword.json
         ONLINE_ZIP_LOADER.triggerFirstLoadIfNecessary();
 
         //LocalZipLoader
@@ -442,7 +443,7 @@ public class StatusInstallerFragment extends Fragment {
             }
         }
     }
-    //获得不过期的zip文件
+    //显示view中版本
     private boolean addZipViews(LayoutInflater inflater, ViewGroup root, FrameworkZips.Type type) {
         ViewGroup container = null;
         //获得当前zip（online和local所有的zip文件的title=xposed版本）
@@ -506,7 +507,7 @@ public class StatusInstallerFragment extends Fragment {
         });
         container.addView(view);
     }
-    //显示一个对话框操作FrameworkZips
+    //获取zip包是点击云下载后有两种模式，一种是直接模式，第二种recovery模式
     private void showActionDialog(final Context context, final String title, final FrameworkZips.Type type) {
         final int ACTION_FLASH = 0;
         final int ACTION_FLASH_RECOVERY = 1;
@@ -552,8 +553,9 @@ public class StatusInstallerFragment extends Fragment {
                             return;
                         }
 
-                        // Handle actions that need a download first.
+                        // Handle actions that need a download first.匿名调用接口方法，runAfterDownload.run(file);调用run方法
                         RunnableWithParam<File> runAfterDownload = null;
+                        //直接模式
                         if (action == ACTION_FLASH) {
                             runAfterDownload = new RunnableWithParam<File>() {
                                 @Override
@@ -561,6 +563,7 @@ public class StatusInstallerFragment extends Fragment {
                                     flash(context, new FlashDirectly(file, type, title, false));
                                 }
                             };
+                        //recovery模式
                         } else if (action == ACTION_FLASH_RECOVERY) {
                             runAfterDownload = new RunnableWithParam<File>() {
                                 @Override
@@ -581,6 +584,7 @@ public class StatusInstallerFragment extends Fragment {
                         if (local != null) {
                             runAfterDownload.run(local.path);
                         } else {
+                            //下载zip包
                             download(context, title, type, runAfterDownload);
                         }
                     }
@@ -590,6 +594,7 @@ public class StatusInstallerFragment extends Fragment {
 
     private void download(Context context, String title, FrameworkZips.Type type, final RunnableWithParam<File> callback) {
         OnlineFrameworkZip zip = FrameworkZips.getOnline(title, type);
+        //增加任务
         new DownloadsUtil.Builder(context)
                 .setTitle(zip.title)
                 .setUrl(zip.url)
@@ -597,6 +602,7 @@ public class StatusInstallerFragment extends Fragment {
                 .setCallback(new DownloadFinishedCallback() {
                     @Override
                     public void onDownloadFinished(Context context, DownloadInfo info) {
+                        //zip下载完成，更新localziploader，和执行flash。
                         LOCAL_ZIP_LOADER.triggerReload(true);
                         callback.run(new File(info.localFilename));
                     }
