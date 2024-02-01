@@ -302,11 +302,13 @@ public final class FrameworkZips {
         for (int i = 0; i < TYPE_COUNT; i++) {
             zipsArray[i] = new TreeMap<>();
         }
-        //获得下载的zip文件/storage/emulated/0/Android/data/<package_name>/cache/downloads/{subDir}
+        //获得下载的zip文件/storage/emulated/0/Android/data/<package_name>/cache/downloads/{subDir}\
+        //而getDownloadDirs是获得一个文件路径.../framework/的file对象
         for (File dir : DownloadsUtil.getDownloadDirs(DownloadsUtil.DOWNLOAD_FRAMEWORK)) {
             if (!dir.isDirectory()) {
                 continue;
             }
+            //查看当前目录的目录和文件
             for (String filename : dir.list()) {
                 if (!filename.endsWith(".zip")) {
                     continue;
@@ -461,6 +463,7 @@ public final class FrameworkZips {
             }.start();
         }
 
+        //这个方法是个条件对如本地而线上也是如此
         @Override
         protected boolean onReload() {
             //这里正在开始下载framework文件,存入ONLINE_FILE里
@@ -501,6 +504,7 @@ public final class FrameworkZips {
 
         @Override
         protected boolean onReload() {
+            //准备本地的资料（zip的）一开始zip文件暂未下载，这个看看作为空
             refreshLocal();
             return true;
         }
