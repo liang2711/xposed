@@ -46,6 +46,7 @@ public class FlashDirectly extends Flashable {
         ZipEntry entry = zip.getEntry("META-INF/com/google/android/update-binary");
         File updateBinaryFile = new File(XposedApp.getInstance().getCacheDir(), "update-binary");
         try {
+            //把update-binary写入内存里
             AssetUtil.writeStreamToFile(zip.getInputStream(entry), updateBinaryFile, 0700);
         } catch (IOException e) {
             Log.e(XposedApp.TAG, "Could not extract update-binary", e);
@@ -62,12 +63,12 @@ public class FlashDirectly extends Flashable {
         }
 
         callback.onStarted();
-
+        //参加环境变量
         rootUtil.execute("export NO_UIPRINT=1", callback);
         if (mSystemless) {
             rootUtil.execute("export SYSTEMLESS=1", callback);
         }
-
+        //执行update-binary文件   mzippath从它父类来看，整个是zip文件可能是下载的
         int result = rootUtil.execute(getShellPath(updateBinaryFile) + " 2 1 " + getShellPath(mZipPath), callback);
         if (result != FlashCallback.OK) {
             triggerError(callback, result);
@@ -90,6 +91,7 @@ public class FlashDirectly extends Flashable {
         }
     };
 
+    //写入数据
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         super.writeToParcel(dest, flags);
