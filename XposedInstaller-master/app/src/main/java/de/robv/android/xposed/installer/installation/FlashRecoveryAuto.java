@@ -24,6 +24,7 @@ public class FlashRecoveryAuto extends Flashable {
         if (zipCheck == null) {
             return;
         } else {
+            //获得zip文件关闭它
             closeSilently(zipCheck.getZip());
         }
 
@@ -58,6 +59,7 @@ public class FlashRecoveryAuto extends Flashable {
         }
 
         // Write the flashing command to /cache/recovery/command.
+        //将"echo --update_package=/cache/recovery/" + zipName + "这条指令添加到command
         callback.onLine(context.getString(R.string.file_writing_recovery_command));
         cmd = "echo --update_package=/cache/recovery/" + zipName + " > /cache/recovery/command";
         if (rootUtil.execute(cmd, callback) != 0) {
