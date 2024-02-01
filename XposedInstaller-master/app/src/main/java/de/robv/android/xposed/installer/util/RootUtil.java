@@ -21,9 +21,11 @@ import eu.chainfire.libsuperuser.Shell;
 import eu.chainfire.libsuperuser.Shell.OnCommandResultListener;
 
 import static de.robv.android.xposed.installer.util.InstallZipUtil.triggerError;
-
+//执行指令的
 public class RootUtil {
     private Shell.Interactive mShell = null;
+    //HandlerThread是在线程中添加了一个handler,这个handler只有在当的handlerthread使用（只有一个线程）
+    //handlerthread异步是在handler里在主线程中使用msg发送给里面的handker执行异步任务
     private HandlerThread mCallbackThread = null;
 
     private boolean mCommandRunning = false;
@@ -34,6 +36,7 @@ public class RootUtil {
     private static final String EMULATED_STORAGE_TARGET;
 
     static {
+        //获取系统变量中的EMULATED_STORAGE_SOURCE和EMULATED_STORAGE_TARGET，并且转换为绝对路径
         EMULATED_STORAGE_SOURCE = getEmulatedStorageVariable("EMULATED_STORAGE_SOURCE");
         EMULATED_STORAGE_TARGET = getEmulatedStorageVariable("EMULATED_STORAGE_TARGET");
     }
@@ -58,6 +61,7 @@ public class RootUtil {
 
         @Override
         public String toString() {
+            //以\n为分隔符进行字符串拼接
             return TextUtils.join("\n", mLines);
         }
     }
@@ -75,8 +79,10 @@ public class RootUtil {
     }
 
     private static String getEmulatedStorageVariable(String variable) {
+        //获得系统变量
         String result = System.getenv(variable);
         if (result != null) {
+            //文件的绝对路径
             result = getCanonicalPath(new File(result));
             if (!result.endsWith("/")) {
                 result += "/";
@@ -87,24 +93,28 @@ public class RootUtil {
 
 
     private final Shell.OnCommandResultListener mOpenListener = new Shell.OnCommandResultListener() {
+        //当命令执行完毕时调用该方法
         @Override
         public void onCommandResult(int commandCode, int exitCode, List<String> output) {
             mStdoutListener.onCommandResult(commandCode, exitCode);
         }
     };
-
+    //用于监听 shell 命令的执行结果和输出
     private final Shell.OnCommandLineListener mStdoutListener = new Shell.OnCommandLineListener() {
+        //在命令执行期间，每当有新的输出行可用时调用该方法
         public void onLine(String line) {
             if (mCallback != null) {
                 mCallback.onLine(line);
             }
         }
-
+        
         @Override
         public void onCommandResult(int commandCode, int exitCode) {
             mLastExitCode = exitCode;
             synchronized (mCallbackThread) {
+                //当前指令完成
                 mCommandRunning = false;
+                //释放mCallbackThread锁，并且通知所有的想要这把所的线程
                 mCallbackThread.notifyAll();
             }
         }
@@ -133,7 +143,7 @@ public class RootUtil {
                 }
             }
         }
-
+        //shell出现了问题，直接进程退出，流关闭
         if (mLastExitCode == OnCommandResultListener.WATCHDOG_EXIT || mLastExitCode == OnCommandResultListener.SHELL_DIED) {
             dispose();
         }
@@ -156,7 +166,7 @@ public class RootUtil {
 
         mCallbackThread = new HandlerThread("su callback listener");
         mCallbackThread.start();
-
+        //mCallbackThread.getLooper()里有一个wait，这是等handlerthread的loopr的创建
         mCommandRunning = true;
         mShell = new Shell.Builder().useSU()
                 .setHandler(new Handler(mCallbackThread.getLooper()))
@@ -207,13 +217,16 @@ public class RootUtil {
         mCallback = callback;
         mCommandRunning = true;
         mShell.addCommand(command, 0, mStdoutListener);
-        waitForCommandFinished();
+        waitForCommandFinished();//等指令执行完
 
         return mLastExitCode;
     }
 
+    //busybox是一个Linux框架的工具,精简指令
     public int executeWithBusybox(String command, LineCallback callback) {
+        //将asset包的busybox写入BUSYBOX_FILE对象
         AssetUtil.extractBusybox();
+        
         return execute(AssetUtil.BUSYBOX_FILE.getAbsolutePath() + " " + command, callback);
     }
 
@@ -233,6 +246,7 @@ public class RootUtil {
     public static String getShellPath(String path) {
         if (EMULATED_STORAGE_SOURCE != null && EMULATED_STORAGE_TARGET != null
                 && path.startsWith(EMULATED_STORAGE_TARGET)) {
+                    //EMULATED_STORAGE_SOURCE+filename
             path = EMULATED_STORAGE_SOURCE + path.substring(EMULATED_STORAGE_TARGET.length());
         }
         return path;
@@ -270,11 +284,12 @@ public class RootUtil {
 
     public static boolean reboot(RebootMode mode, @NonNull Context context) {
         RootUtil rootUtil = new RootUtil();
+        //shell开启失败弹出对话框
         if (!rootUtil.startShell()) {
             NavUtil.showMessage(context, context.getString(R.string.root_failed));
             return false;
         }
-
+        //callback收集执行指令后的结果
         LineCallback callback = new CollectingLineCallback();
         if (!rootUtil.reboot(mode, callback)) {
             StringBuilder message = new StringBuilder(callback.toString());
@@ -303,9 +318,11 @@ public class RootUtil {
     }
 
     private boolean reboot(LineCallback callback) {
+        //BUSYBOX_FILE路径+ reboot指令
         return executeWithBusybox("reboot", callback) == 0;
     }
 
+    //重新刷新AndroidUI 和 zygote
     private boolean softReboot(LineCallback callback) {
         return execute("setprop ctl.restart surfaceflinger; setprop ctl.restart zygote", callback) == 0;
     }
