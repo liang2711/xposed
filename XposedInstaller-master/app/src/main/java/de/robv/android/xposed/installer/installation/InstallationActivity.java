@@ -96,6 +96,7 @@ public class InstallationActivity extends XposedBaseActivity {
             new Thread("FlashZip") {
                 @Override
                 public void run() {
+                    //执行当前flashable的功能
                     mFlashable.flash(context, InstallationFragment.this);
                 }
             }.start();
@@ -119,7 +120,7 @@ public class InstallationActivity extends XposedBaseActivity {
 
             return view;
         }
-
+        //fragment的
         @Override
         public void onStarted() {
             try {
@@ -205,6 +206,7 @@ public class InstallationActivity extends XposedBaseActivity {
 
         @Override
         public void onDone() {
+            //加载路径里的xposedprop
             XposedApp.getInstance().reloadXposedProp();
             try {
                 Thread.sleep(LONG_ANIM_TIME);
