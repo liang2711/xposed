@@ -67,12 +67,19 @@ bool handleOptions(int argc, char* const argv[]) {
         }
         return true;
     }
+    /**
+     * argc是argv的len，而argv中始终会有一个“程序的名字”
+    */
 
     // From Lollipop coding, used to override the process name
+    //获得argv[0]的指针
     argBlockStart = argv[0];
+    //将地址转换为uintptr_t类型
     uintptr_t start = reinterpret_cast<uintptr_t>(argv[0]);
     uintptr_t end = reinterpret_cast<uintptr_t>(argv[argc - 1]);
+    //end=argv[argc-1]参数的第一个值，要加上argv[argc-1]的长度才能为arg的最后一个，而+1是因为数组后面的"/0"
     end += strlen(argv[argc - 1]) + 1;
+    //获得arg块的长度
     argBlockLength = end - start;
 
     return false;
@@ -183,7 +190,7 @@ void printRomInfo() {
 }
 
 /** Parses /system/xposed.prop and stores selected values in variables
-分析/system/xxposed.pop并将所选值存储在变量中 找到xposedVersion和xposedVersionInit
+分析/system/xxposed.prop并将所选值存储在变量中 找到xposedVersion和xposedVersionInit
 */
 void parseXposedProp() {
     //获得/system/xposed.prop 文件
