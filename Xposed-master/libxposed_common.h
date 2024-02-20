@@ -4,6 +4,7 @@
 #include "xposed_shared.h"
 
 #ifndef NATIVE_METHOD
+//#functionName获得传入参数的名字而不是值
 #define NATIVE_METHOD(className, functionName, signature) \
   { #functionName, signature, reinterpret_cast<void*>(className ## _ ## functionName) }
 #endif
