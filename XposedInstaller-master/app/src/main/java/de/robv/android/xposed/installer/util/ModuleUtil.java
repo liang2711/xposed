@@ -45,6 +45,7 @@ public final class ModuleUtil {
 
     private ModuleUtil() {
         mApp = XposedApp.getInstance();
+        //应该是安装的模块
         mPref = mApp.getSharedPreferences("enabled_modules", Context.MODE_PRIVATE);
         mPm = mApp.getPackageManager();
         mFrameworkPackageName = mApp.getPackageName();
@@ -81,7 +82,7 @@ public final class ModuleUtil {
         RepoDb.beginTransation();
         try {
             RepoDb.deleteAllInstalledModules();
-
+            //查看app的androidManifest.xml
             for (PackageInfo pkg : mPm.getInstalledPackages(PackageManager.GET_META_DATA)) {
                 ApplicationInfo app = pkg.applicationInfo;
                 if (!app.enabled)
@@ -94,7 +95,7 @@ public final class ModuleUtil {
                 } else if (isFramework(pkg.packageName)) {
                     mFramework = installed = new InstalledModule(pkg, true);
                 }
-
+                //将模块加入给数据库
                 if (installed != null)
                     RepoDb.insertInstalledModule(installed);
             }
@@ -200,15 +201,16 @@ public final class ModuleUtil {
         try {
             Log.i(XposedApp.TAG, "updating modules.list");
             int installedXposedVersion = XposedApp.getInstalledXposedVersion();
-
+            //增加在modules_list_file文件里
             PrintWriter modulesList = new PrintWriter(MODULES_LIST_FILE);
             PrintWriter enabledModulesList = new PrintWriter(XposedApp.ENABLED_MODULES_LIST_FILE);
 
             List<InstalledModule> enabledModules = getEnabledModules();
             for (InstalledModule module : enabledModules) {
+                //无效模块声明
                 if (module.minVersion > installedXposedVersion || module.minVersion < MIN_MODULE_VERSION)
                     continue;
-
+                //追加文件内容 当前应用的apk路径
                 modulesList.println(module.app.sourceDir);
                 try {
                     String installer = mPm.getInstallerPackageName(module.app.packageName);
