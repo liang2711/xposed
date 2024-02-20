@@ -113,6 +113,7 @@ public final class XposedBridge {
 	}
 
 	/** @hide */
+	//应用的情况下
 	protected static final class ToolEntryPoint {
 		protected static void main(String[] args) {
 			isZygote = false;
@@ -202,6 +203,7 @@ public final class XposedBridge {
 	 * @see XposedHelpers#findAndHookConstructor(Class, Object...)
 	 * @see #hookAllConstructors
 	 */
+	//设置hook函数
 	public static XC_MethodHook.Unhook hookMethod(Member hookMethod, XC_MethodHook callback) {
 		if (!(hookMethod instanceof Method) && !(hookMethod instanceof Constructor<?>)) {
 			throw new IllegalArgumentException("Only methods and constructors can be hooked: " + hookMethod.toString());
@@ -225,6 +227,7 @@ public final class XposedBridge {
 
 		if (newMethod) {
 			Class<?> declaringClass = hookMethod.getDeclaringClass();
+			//slot 是 Method在类中的偏移位置
 			int slot;
 			Class<?>[] parameterTypes;
 			Class<?> returnType;
@@ -241,8 +244,9 @@ public final class XposedBridge {
 				parameterTypes = ((Constructor<?>) hookMethod).getParameterTypes();
 				returnType = null;
 			}
-
+			//被hook的函数的信息
 			AdditionalHookInfo additionalInfo = new AdditionalHookInfo(callbacks, parameterTypes, returnType);
+			//native函数设置hook
 			hookMethodNative(hookMethod, declaringClass, slot, additionalInfo);
 		}
 
@@ -259,6 +263,7 @@ public final class XposedBridge {
 	 * @param callback The reference to the callback as specified in {@link #hookMethod}.
 	 */
 	@Deprecated
+	//移除hook，只是移除了监听
 	public static void unhookMethod(Member hookMethod, XC_MethodHook callback) {
 		CopyOnWriteSortedSet<XC_MethodHook> callbacks;
 		synchronized (sHookedMethodCallbacks) {
@@ -279,6 +284,7 @@ public final class XposedBridge {
 	 * @param callback The callback to be executed when the hooked methods are called.
 	 * @return A set containing one object for each found method which can be used to unhook it.
 	 */
+	//以类为单位hook函数，而返回unhook，是方便hook
 	@SuppressWarnings("UnusedReturnValue")
 	public static Set<XC_MethodHook.Unhook> hookAllMethods(Class<?> hookClass, String methodName, XC_MethodHook callback) {
 		Set<XC_MethodHook.Unhook> unhooks = new HashSet<>();
@@ -305,11 +311,12 @@ public final class XposedBridge {
 
 	/**
 	 * This method is called as a replacement for hooked methods.
+	 *替换后的方法
 	 */
 	private static Object handleHookedMethod(Member method, int originalMethodId, Object additionalInfoObj,
 			Object thisObject, Object[] args) throws Throwable {
 		AdditionalHookInfo additionalInfo = (AdditionalHookInfo) additionalInfoObj;
-
+		//如果当前禁止hook或者没有钩子则调用原来的目标函数
 		if (disableHooks) {
 			try {
 				return invokeOriginalMethodNative(method, originalMethodId, additionalInfo.parameterTypes,
@@ -339,6 +346,7 @@ public final class XposedBridge {
 		int beforeIdx = 0;
 		do {
 			try {
+				//XC_MethodHook调用XC_MethodHook的before，after函数
 				((XC_MethodHook) callbacksSnapshot[beforeIdx]).beforeHookedMethod(param);
 			} catch (Throwable t) {
 				XposedBridge.log(t);
@@ -348,7 +356,7 @@ public final class XposedBridge {
 				param.returnEarly = false;
 				continue;
 			}
-
+			//钩子函数通过设置returnEarly参数可跳过后面钩子函数的处理
 			if (param.returnEarly) {
 				// skip remaining "before" callbacks and corresponding "after" callbacks
 				beforeIdx++;
@@ -357,6 +365,7 @@ public final class XposedBridge {
 		} while (++beforeIdx < callbacksLength);
 
 		// call original method if not requested otherwise
+		//没有设置returnEarly，这是执行被hook的函数
 		if (!param.returnEarly) {
 			try {
 				param.setResult(invokeOriginalMethodNative(method, originalMethodId,
@@ -428,6 +437,7 @@ public final class XposedBridge {
 	 */
 	private native synchronized static void hookMethodNative(Member method, Class<?> declaringClass, int slot, Object additionalInfo);
 
+	//调用c层方法
 	private native static Object invokeOriginalMethodNative(Member method, int methodId,
 			Class<?>[] parameterTypes, Class<?> returnType, Object thisObject, Object[] args)
 			throws IllegalAccessException, IllegalArgumentException, InvocationTargetException;
