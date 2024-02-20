@@ -73,6 +73,7 @@ import de.robv.android.xposed.installer.util.ThemeUtil;
 import static android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS;
 import static de.robv.android.xposed.installer.XposedApp.WRITE_EXTERNAL_PERMISSION;
 
+//加载xposed框架的app也就是xposed模块
 public class ModulesFragment extends ListFragment implements ModuleListener {
     public static final String SETTINGS_CATEGORY = "de.robv.android.xposed.category.MODULE_SETTINGS";
     public static final String PLAY_STORE_PACKAGE = "com.android.vending";
@@ -88,6 +89,7 @@ public class ModulesFragment extends ListFragment implements ModuleListener {
         public void run() {
             mAdapter.setNotifyOnChange(false);
             mAdapter.clear();
+            //获取安装的xposed模块，传给adapter显示view
             mAdapter.addAll(mModuleUtil.getModules().values());
             final Collator col = Collator.getInstance(Locale.getDefault());
             mAdapter.sort(new Comparator<InstalledModule>() {
@@ -131,6 +133,7 @@ public class ModulesFragment extends ListFragment implements ModuleListener {
         }
 
         mAdapter = new ModuleAdapter(getActivity());
+        //查看系统里有哪些xposed模块
         reloadModules.run();
         setListAdapter(mAdapter);
         setEmptyText(getActivity().getString(R.string.no_xposed_modules_found));
@@ -501,6 +504,7 @@ public class ModulesFragment extends ListFragment implements ModuleListener {
                     @Override
                     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                         String packageName = (String) buttonView.getTag();
+                        //当前模块是否安装
                         boolean changed = mModuleUtil.isModuleEnabled(packageName) ^ isChecked;
                         if (changed) {
                             mModuleUtil.setModuleEnabled(packageName, isChecked);
