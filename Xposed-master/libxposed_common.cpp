@@ -66,6 +66,7 @@ int readIntConfig(const char* fileName, int defaultValue) {
 ////////////////////////////////////////////////////////////
 
 bool initXposedBridge(JNIEnv* env) {
+    //de/robv/android/xposed/XposedBridge获得class
     classXposedBridge = env->FindClass(CLASS_XPOSED_BRIDGE);
     if (classXposedBridge == NULL) {
         ALOGE("Error while loading Xposed class '%s':", CLASS_XPOSED_BRIDGE);
@@ -73,9 +74,11 @@ bool initXposedBridge(JNIEnv* env) {
         env->ExceptionClear();
         return false;
     }
+    //将jobject转为jclass
     classXposedBridge = reinterpret_cast<jclass>(env->NewGlobalRef(classXposedBridge));
 
     ALOGI("Found Xposed class '%s', now initializing", CLASS_XPOSED_BRIDGE);
+    //注册jni bridge方法
     if (register_natives_XposedBridge(env, classXposedBridge) != JNI_OK) {
         ALOGE("Could not register natives for '%s'", CLASS_XPOSED_BRIDGE);
         logExceptionStackTrace();
@@ -171,14 +174,15 @@ jboolean XposedBridge_initXResourcesNative(JNIEnv* env, jclass) {
         env->ExceptionClear();
         return false;
     }
+    //强转
     classXResources = reinterpret_cast<jclass>(env->NewGlobalRef(classXResources));
-
+    //注册资源替换相关的jni函数 XResources rewriteXmlReferencesNative 函数
     if (register_natives_XResources(env, classXResources) != JNI_OK) {
         ALOGE("Could not register natives for '%s'", CLASS_XRESOURCES);
         env->ExceptionClear();
         return false;
     }
-
+    //XResources系统资源
     methodXResourcesTranslateResId = env->GetStaticMethodID(classXResources, "translateResId",
         "(ILandroid/content/res/XResources;Landroid/content/res/Resources;)I");
     if (methodXResourcesTranslateResId == NULL) {
@@ -333,8 +337,9 @@ jbyteArray ZygoteService_readFile(JNIEnv* env, jclass, jstring filenameJ) {
 ////////////////////////////////////////////////////////////
 // JNI methods registrations
 ////////////////////////////////////////////////////////////
-
+//注册本地xposedbridge方法
 int register_natives_XposedBridge(JNIEnv* env, jclass clazz) {
+    //把本地方法放入jni中给xposedBridge调用
     const JNINativeMethod methods[] = {
         NATIVE_METHOD(XposedBridge, hadInitErrors, "()Z"),
         NATIVE_METHOD(XposedBridge, getStartClassName, "()Ljava/lang/String;"),
