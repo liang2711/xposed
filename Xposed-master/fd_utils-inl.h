@@ -13,24 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+//<string>：该头文件提供了字符串处理相关的函数和类，包括字符串操作、搜索、替换等功能。
 #include <string>
+//<unordered_map>：该头文件定义了无序映射容器 unordered_map，它以键-值对的形式存储数据，并提供了快速的查找和插入操作。
 #include <unordered_map>
+//<set>：该头文件定义了集合容器 set，它存储一组唯一的元素，并按照一定的顺序进行排序。
 #include <set>
+//<vector>：该头文件定义了动态数组容器 vector，它可以自动调整大小，存储任意类型的元素，并提供了快速的随机访问。
 #include <vector>
+//<algorithm>：该头文件提供了常见的算法函数，如排序、查找、合并等，用于操作容器中的数据
 #include <algorithm>
 
+//该头文件提供了对目录和文件的访问函数和结构体定义，如打开、读取和关闭目录等
 #include <dirent.h>
+//该头文件定义了文件控制函数和常量，用于打开、关闭、读取和写入文件，以及设置文件属性等
 #include <fcntl.h>
+//该头文件定义了与用户组相关的函数和结构体定义，如获取用户组信息、检查用户组成员等
 #include <grp.h>
+//该头文件定义了整数类型的宏定义，用于跨平台的整数处理。
 #include <inttypes.h>
+//该头文件提供了一些通用的函数和类型定义，如内存管理、字符串转换等。
 #include <stdlib.h>
+//该头文件定义了与套接字及网络通信相关的函数和结构体定义，用于网络编程。
 #include <sys/socket.h>
+//该头文件定义了与文件状态相关的函数和结构体定义，如获取文件信息、修改文件权限等。
 #include <sys/stat.h>
+//该头文件定义了系统级的基本数据类型和结构体，如整数类型、文件描述符类型等。
 #include <sys/types.h>
+//该头文件定义了与Unix域套接字相关的函数和结构体定义，用于本地进程间通信。
 #include <sys/un.h>
+//该头文件定义了与POSIX标准相关的函数和类型定义，如进程控制、文件操作等。
 #include <unistd.h>
 
+//该头文件提供了Android系统中的日志函数和宏定义，用于在应用程序中输出日志信息。
 #include <cutils/log.h>
 #include "JNIHelp.h"
 #include "ScopedPrimitiveArray.h"
@@ -44,6 +59,10 @@ static const char* kPathPrefixWhitelist[] = {
   "/vendor/priv-app/",
 };
 
+/*
+如果 /proc/self/fd/0 是一个符号链接，指向了 /dev/pts/0，
+那么这意味着文件描述符 0 当前指向了 /dev/pts/0 这个终端设备文件。
+*/
 static const char* kFdPath = "/proc/self/fd";
 
 // Keeps track of all relevant information (flags, offset etc.) of an
@@ -56,17 +75,26 @@ class FileDescriptorInfo {
     struct stat f_stat;
     // This should never happen; the zygote should always have the right set
     // of permissions required to stat all its open files.
+    /*
+    fstat(fd, &f_stat) 是一个系统调用，用于获取文件描述符 fd 所关联的文件的状态信息。
+    &f_stat 是一个指向 struct stat 结构体的指针，用于存储文件状态信息。
+
+    使用 TEMP_FAILURE_RETRY 宏对 fstat 系统调用进行包装，
+    可以确保在系统调用被中断时自动进行重试，以提高系统调用的可靠性
+    */
     if (TEMP_FAILURE_RETRY(fstat(fd, &f_stat)) == -1) {
       ALOGE("Unable to stat fd %d : %s", fd, strerror(errno));
       return NULL;
     }
 
+    //查看f_stat是否是个socket文件
     if (S_ISSOCK(f_stat.st_mode)) {
       std::string socket_name;
+      //获得socket的地址
       if (!GetSocketName(fd, &socket_name)) {
         return NULL;
       }
-
+       //用于检查给定的套接字名称（socket_name）是否在白名单中 是否在kPathPrefixWhitelist中
       if (!IsWhitelisted(socket_name)) {
         //ALOGE("Socket name not whitelisted : %s (fd=%d)", socket_name.c_str(), fd);
         return NULL;
@@ -76,6 +104,7 @@ class FileDescriptorInfo {
     }
 
     std::string file_path;
+    //获得文件符号路径的目的地
     if (!Readlink(fd, &file_path)) {
       return NULL;
     }
@@ -95,6 +124,7 @@ class FileDescriptorInfo {
     // S_ISFIFO : Not supported. Note that the zygote uses pipes to communicate
     // with the child process across forks but those should have been closed
     // before we got to this point.
+    //是否是个字符设备，是否是个常规文件
     if (!S_ISCHR(f_stat.st_mode) && !S_ISREG(f_stat.st_mode)) {
       ALOGE("Unsupported st_mode %d", f_stat.st_mode);
       return NULL;
@@ -103,6 +133,7 @@ class FileDescriptorInfo {
     // File descriptor flags : currently on FD_CLOEXEC. We can set these
     // using F_SETFD - we're single threaded at this point of execution so
     // there won't be any races.
+    //获得fd的close_on_exec
     const int fd_flags = TEMP_FAILURE_RETRY(fcntl(fd, F_GETFD));
     if (fd_flags == -1) {
       ALOGE("Failed fcntl(%d, F_GETFD) : %s", fd, strerror(errno));
@@ -121,13 +152,15 @@ class FileDescriptorInfo {
     //   can only set O_APPEND, O_ASYNC, O_DIRECT, O_NOATIME, and O_NONBLOCK.
     //   In particular, it can't set O_SYNC and O_DSYNC. We'll have to test for
     //   their presence and pass them in to open().
+    //获取fd指向文件的状态，这个文件是只读还是读写都可以
     int fs_flags = TEMP_FAILURE_RETRY(fcntl(fd, F_GETFL));
     if (fs_flags == -1) {
       ALOGE("Failed fcntl(%d, F_GETFL) : %s", fd, strerror(errno));
       return NULL;
     }
 
-    // File offset : Ignore the offset for non seekable files.
+    // File offset : Ignore the offset for non seekable files.5
+    //获取fd指向的文件偏移量，这个偏移量是指读取文件中的位置，一般开始是0。
     const off_t offset = TEMP_FAILURE_RETRY(lseek64(fd, 0, SEEK_CUR));
 
     // We pass the flags that open accepts to open, and use F_SETFL for
@@ -138,7 +171,7 @@ class FileDescriptorInfo {
 
     return new FileDescriptorInfo(f_stat, file_path, fd, open_flags, fd_flags, fs_flags, offset);
   }
-
+//常量函数，里面的成员变量不能改 重定向fd为null
   bool Detach() const {
     const int dev_null_fd = open("/dev/null", O_RDWR);
     if (dev_null_fd < 0) {
@@ -158,7 +191,7 @@ class FileDescriptorInfo {
 
     return true;
   }
-
+   //刷新
   bool Reopen() const {
     if (is_sock) {
       return true;
@@ -167,6 +200,7 @@ class FileDescriptorInfo {
     // NOTE: This might happen if the file was unlinked after being opened.
     // It's a common pattern in the case of temporary files and the like but
     // we should not allow such usage from the zygote.
+    //c_str()将数组转为c格式的数组/0加在后面      获得file_path的文件的文件描述符
     const int new_fd = TEMP_FAILURE_RETRY(open(file_path.c_str(), open_flags));
 
     if (new_fd == -1) {
@@ -248,6 +282,7 @@ class FileDescriptorInfo {
   // TODO: Call android::base::Readlink instead of copying the code here.
   static bool Readlink(const int fd, std::string* result) {
     char path[64];
+    //将"/proc/self/fd/%d"写入path里
     snprintf(path, sizeof(path), "/proc/self/fd/%d", fd);
 
     // Code copied from android::base::Readlink starts here :
@@ -258,12 +293,13 @@ class FileDescriptorInfo {
     // we couldn't detect.
     // ext2 and ext4 both have PAGE_SIZE limitations, so we assume that here.
     char* buf = new char[4096];
+    //获得path的符号链接文件的目标路径
     ssize_t len = readlink(path, buf, 4096);
     if (len == -1) {
       delete[] buf;
       return false;
     }
-
+    //将buf获取的内容给result
     result->assign(buf, len);
     delete[] buf;
     return true;
@@ -343,10 +379,13 @@ class FileDescriptorTable {
       ALOGE("Unable to open directory %s: %s", kFdPath, strerror(errno));
       return NULL;
     }
+    //获得目录的文件描述符
     int dir_fd = dirfd(d);
+    // dirent 结构体的指针，该结构体包含了目录中下一个文件或子目录的信息
     dirent* e;
 
     std::unordered_map<int, FileDescriptorInfo*> open_fd_map;
+    //获得包含在/proc/self/fd中的文件描述符
     while ((e = readdir(d)) != NULL) {
       const int fd = ParseFd(e, dir_fd);
       if (fd == -1) {
@@ -357,6 +396,7 @@ class FileDescriptorTable {
       if (info == NULL) {
         continue;
       }
+      //把fd清除文件描述符，但在info有文件描述符的地址
       info->Detach();
       open_fd_map[fd] = info;
     }
@@ -368,7 +408,7 @@ class FileDescriptorTable {
     return new FileDescriptorTable(open_fd_map);
   }
 
-  // Reopens all file descriptors that are contained in the table.
+  // Reopens all file descriptors that are contained in the table.重新打开表中包含的所有文件描述符。
   void Reopen() {
     std::unordered_map<int, FileDescriptorInfo*>::const_iterator it;
     for (it = open_fd_map_.begin(); it != open_fd_map_.end(); ++it) {
@@ -387,6 +427,7 @@ class FileDescriptorTable {
 
   static int ParseFd(dirent* e, int dir_fd) {
     char* end;
+    //将字符串转换为长整型数 如果转换不成功的会在end上，当end只有\0时说明全部转换成功
     const int fd = strtol(e->d_name, &end, 10);
     if ((*end) != '\0') {
       return -1;
