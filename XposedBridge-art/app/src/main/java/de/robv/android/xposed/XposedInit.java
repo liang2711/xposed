@@ -101,7 +101,7 @@ import static de.robv.android.xposed.XposedHelpers.setStaticObjectField;
 		}
 
 		final HashSet<String> loadedPackagesInProcess = new HashSet<>(1);
-
+		//对activitythread的handleBindApplication方法挂钩,这是Android应用信息点
 		// normal process initialization (for new Activity, Service, BroadcastReceiver etc.)
 		findAndHookMethod(ActivityThread.class, "handleBindApplication", "android.app.ActivityThread.AppBindData", new XC_MethodHook() {
 			@Override
@@ -122,7 +122,9 @@ import static de.robv.android.xposed.XposedHelpers.setStaticObjectField;
 
 				setObjectField(activityThread, "mBoundApplication", param.args[0]);
 				loadedPackagesInProcess.add(reportedPackageName);
+				//获取当前应用的loadedapk 为了获取当前应用最大的classloader
 				LoadedApk loadedApk = activityThread.getPackageInfoNoCheck(appInfo, compatInfo);
+				//指定应用资源
 				XResources.setPackageNameForResDir(appInfo.packageName, loadedApk.getResDir());
 
 				XC_LoadPackage.LoadPackageParam lpparam = new XC_LoadPackage.LoadPackageParam(XposedBridge.sLoadedPackageCallbacks);
@@ -131,6 +133,7 @@ import static de.robv.android.xposed.XposedHelpers.setStaticObjectField;
 				lpparam.classLoader = loadedApk.getClassLoader();
 				lpparam.appInfo = appInfo;
 				lpparam.isFirstApplication = true;
+				//回调所有的IXposedHookLoadPackage 而lpparam是回调的参数
 				XC_LoadPackage.callAll(lpparam);
 
 				if (reportedPackageName.equals(INSTALLER_PACKAGE_NAME))
@@ -238,7 +241,7 @@ import static de.robv.android.xposed.XposedHelpers.setStaticObjectField;
 			}
 		}
 	}
-
+	//对于资源类进行hook
 	/*package*/ static void hookResources() throws Throwable {
 		if (SELinuxHelper.getAppDataFileService().checkFileExists(BASE_DIR + "conf/disable_resources")) {
 			Log.w(TAG, "Found " + BASE_DIR + "conf/disable_resources, not hooking resources");
