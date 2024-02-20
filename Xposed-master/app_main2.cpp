@@ -241,7 +241,7 @@ int main(int argc, char* const argv[])
         }
     }
 
-    //增加xposed的参数处理
+    //对xposed的一些启动信息进行检测
     if (xposed::handleOptions(argc, argv)) {
         return 0;
     }
