@@ -112,6 +112,7 @@ public abstract class XCallback implements Comparable<XCallback> {
 	protected void call(Param param) throws Throwable {}
 
 	/** @hide */
+	//比较优先级
 	@Override
 	public int compareTo(XCallback other) {
 		if (this == other)
