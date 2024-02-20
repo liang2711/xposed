@@ -444,8 +444,10 @@ import static de.robv.android.xposed.XposedHelpers.setStaticObjectField;
 
 	/**
 	 * Try to load all modules defined in <code>BASE_DIR/conf/modules.list</code>
+	 * 加载模块
 	 */
 	/*package*/ static void loadModules() throws IOException {
+		//这个文件是子xposed应用里创建的记录了模块的apk和包名
 		final String filename = BASE_DIR + "conf/modules.list";
 		BaseService service = SELinuxHelper.getAppDataFileService();
 		if (!service.checkFileExists(filename)) {
@@ -509,6 +511,7 @@ import static de.robv.android.xposed.XposedHelpers.setStaticObjectField;
 		InputStream is;
 		try {
 			zipFile = new ZipFile(apk);
+			//得到模块的xposed_init文件，这个文件记录了继承IXposedHookLoadPackage的类
 			ZipEntry zipEntry = zipFile.getEntry("assets/xposed_init");
 			if (zipEntry == null) {
 				Log.e(TAG, "  assets/xposed_init not found in the APK");
@@ -532,7 +535,9 @@ import static de.robv.android.xposed.XposedHelpers.setStaticObjectField;
 					continue;
 
 				try {
+					//继承IXposedHookLoadPackage类的名字
 					Log.i(TAG, "  Loading class " + moduleClassName);
+					//得到对象
 					Class<?> moduleClass = mcl.loadClass(moduleClassName);
 
 					if (!IXposedMod.class.isAssignableFrom(moduleClass)) {
@@ -542,7 +547,7 @@ import static de.robv.android.xposed.XposedHelpers.setStaticObjectField;
 						Log.e(TAG, "    This class requires resource-related hooks (which are disabled), skipping it.");
 						continue;
 					}
-
+					//IXposedHookxxx为监听的接口，如IXposedHookLoadPackage是xposed监听包回调的接口
 					final Object moduleInstance = moduleClass.newInstance();
 					if (XposedBridge.isZygote) {
 						if (moduleInstance instanceof IXposedHookZygoteInit) {
