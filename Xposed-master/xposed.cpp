@@ -148,7 +148,7 @@ bool initialize(bool zygote, bool startSystemServer, const char* className, int 
     if (isDisabled() || (!zygote && shouldIgnoreCommand(argc, argv)))
         return false;
     //上面都是检查环境和开启logcat 这个logcat只打印xposed还有全局，大概是
-    //增加xposedbridge.jar文件在classpath里 这样所有在zygote的进程都可以用这个.jar文件
+    //增加xposedbridge.jar文件在classpath环境变量里 这样所有在zygote的进程都可以用这个.jar文件
     return addJarToClasspath();
 }
 
